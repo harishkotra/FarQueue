@@ -1,103 +1,178 @@
-import Image from "next/image";
+"use client";
+import { NeynarAuthButton, useNeynarContext } from "@neynar/react";
+import { User } from "@neynar/react/dist/types";
+import { useEffect, useState, useCallback, FormEvent } from "react";
+
+interface ScheduledCast {
+  id: number;
+  cast_text: string;
+  publish_at: string;
+  is_published: boolean;
+  published_hash: string | null;
+}
+
+// Helper function to format dates for the datetime-local input
+const toDateTimeLocal = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const { user, isAuthenticated } = useNeynarContext();
+  const [castText, setCastText] = useState<string>("");
+  const [publishAt, setPublishAt] = useState<string>("");
+  const [scheduledCasts, setScheduledCasts] = useState<ScheduledCast[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  const [minDate, setMinDate] = useState('');
+  const [maxDate, setMaxDate] = useState('');
+
+  useEffect(() => {
+    const now = new Date();
+    const min = new Date(now.getTime() + 5 * 60 * 1000);
+    const max = new Date(now.getTime() + 25 * 24 * 60 * 60 * 1000);
+    setMinDate(toDateTimeLocal(min));
+    setMaxDate(toDateTimeLocal(max));
+  }, []);
+
+  const saveUserToDatabase = useCallback(async (userData: User) => {
+    try {
+      await fetch('/api/user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userData),
+      });
+    } catch (error) {
+      console.error("Failed to save user:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      saveUserToDatabase(user);
+    }
+  }, [user, saveUserToDatabase]);
+
+  const fetchScheduledCasts = useCallback(async () => {
+    if (!user) return;
+    try {
+      setIsLoading(true);
+      const response = await fetch(`/api/scheduled-casts?fid=${user.fid}`);
+      if (response.ok) {
+        const data = await response.json();
+        // Defensive check: only update state if data.casts is an array
+        if (Array.isArray(data.casts)) {
+          setScheduledCasts(data.casts);
+        }
+      } else {
+        console.error("API call to fetch casts failed");
+        setScheduledCasts([]); // Reset to empty array on failure
+      }
+    } catch (error) {
+      console.error("Failed to fetch casts:", error);
+      setScheduledCasts([]); // Reset to empty array on failure
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchScheduledCasts();
+    }
+  }, [isAuthenticated, fetchScheduledCasts]);
+
+  const handleScheduleCast = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!castText || !publishAt || !user) {
+      alert("Please fill in all fields.");
+      return;
+    }
+
+    const utcPublishAt = new Date(publishAt).toISOString();
+
+    try {
+      const response = await fetch('/api/schedule-cast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fid: user.fid, castText, publishAt }),
+      });
+
+      if (response.ok) {
+        alert("Cast scheduled successfully!");
+        setCastText("");
+        setPublishAt("");
+        fetchScheduledCasts();
+      } else {
+        throw new Error('Failed to schedule cast.');
+      }
+    } catch (error) {
+      console.error(error);
+      alert("An error occurred while scheduling your cast.");
+    }
+  };
+
+  return (
+    <main style={{ fontFamily: 'Arial, sans-serif', maxWidth: '800px', margin: '0 auto', padding: '20px' }}>
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' }}>
+        <h1 style={{ fontSize: '2rem' }}>Farcaster Cast Scheduler</h1>
+        <NeynarAuthButton />
+      </header>
+
+      {!isAuthenticated ? (
+        <p>Please sign in with Farcaster to schedule a cast.</p>
+      ) : (
+        <div>
+          {user && <p style={{ fontSize: '1.2rem' }}>Welcome, {user.displayName} (@{user.username})!</p>}
+
+          <section style={{ marginBottom: '40px' }}>
+            <h2 style={{ borderBottom: '1px solid #ccc', paddingBottom: '10px' }}>Schedule a New Cast</h2>
+            <form onSubmit={handleScheduleCast} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              <textarea
+                value={castText}
+                onChange={(e) => setCastText(e.target.value)}
+                placeholder="What's happening?"
+                maxLength={320}
+                rows={4}
+                style={{ padding: '10px', fontSize: '1rem', borderRadius: '5px', border: '1px solid #ccc' }}
+              />
+              <input
+                type="datetime-local"
+                value={publishAt}
+                onChange={(e) => setPublishAt(e.target.value)}
+                min={minDate}
+                max={maxDate}
+                style={{ padding: '10px', fontSize: '1rem', borderRadius: '5px', border: '1px solid #ccc' }}
+              />
+              <button type="submit" style={{ padding: '10px 20px', fontSize: '1rem', cursor: 'pointer', backgroundColor: '#8a63d2', color: 'white', border: 'none', borderRadius: '5px' }}>
+                Schedule Cast
+              </button>
+            </form>
+          </section>
+
+          <section>
+            <h2 style={{ borderBottom: '1px solid #ccc', paddingBottom: '10px' }}>Your Scheduled Casts</h2>
+            {isLoading ? <p>Loading casts...</p> : (
+              <ul style={{ listStyle: 'none', padding: 0 }}>
+                {scheduledCasts && scheduledCasts.map((cast) => (
+                  <li key={cast.id} style={{ border: '1px solid #eee', padding: '15px', marginBottom: '10px', borderRadius: '5px' }}>
+                    <p style={{ margin: '0 0 10px 0', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>"{cast.cast_text}"</p>
+                    <small>
+                      Scheduled for: {new Date(cast.publish_at).toLocaleString()}
+                      <br />
+                      Status: {cast.is_published ? `Published (hash: ${cast.published_hash?.substring(0, 10)}...)` : 'Pending'}
+                    </small>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+      )}
+    </main>
   );
 }

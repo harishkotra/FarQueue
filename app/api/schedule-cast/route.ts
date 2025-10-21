@@ -15,6 +15,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Missing required fields.' }, { status: 400 });
     }
 
+    // Check if the user is a pro user
+    const users = await query('SELECT is_pro FROM users WHERE fid = ?', [fid]);
+    const isPro = users[0]?.is_pro || false;
+
+    if (!isPro) {
+      // If not a pro user, count their casts for the current month
+      const [countResult] = await query(
+        `SELECT COUNT(*) as castCount FROM scheduled_casts
+         WHERE user_fid = ? AND MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE())`,
+        [fid]
+      );
+      const castCount = countResult.castCount;
+
+      if (castCount >= 15) {
+        return NextResponse.json({
+          message: 'You have reached your monthly limit of 15 casts. Please upgrade for unlimited casting.'
+        }, { status: 403 }); // 403 Forbidden is a good status code for this
+      }
+    }
+    
+
     const now = new Date();
     const scheduledDate = new Date(publishAt);
 

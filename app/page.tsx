@@ -52,6 +52,7 @@ export default function Home() {
   const [isUpgrading, setIsUpgrading] = useState<boolean>(false);
   const [minDate, setMinDate] = useState('');
   const [maxDate, setMaxDate] = useState('');
+  const [lastTxHash, setLastTxHash] = useState<string | null>(null);
 
   const { isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
@@ -75,8 +76,148 @@ export default function Home() {
     } else { setScheduledCasts([]); setUserStatus(null); }
   }, [user]);
 
-  const handleScheduleCast = async (e: FormEvent<HTMLFormElement>) => { /* ... (no changes needed here) */ };
-  const handleUpgrade = async () => { /* ... (no changes needed here) */ };
+  const handleScheduleCast = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!castText || !publishAt || !user) {
+      alert("Please fill in all fields.");
+      return;
+    }
+    const utcPublishAt = new Date(publishAt).toISOString();
+    try {
+      const response = await fetch('/api/schedule-cast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fid: user.fid, castText, publishAt: utcPublishAt }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        alert("Cast scheduled successfully!");
+        setCastText("");
+        setPublishAt("");
+        if (data.txHash) {
+          setLastTxHash(data.txHash); // Set the transaction hash
+        }
+        // Manually trigger a refresh after scheduling
+        if (user) {
+          const castsResponse = await fetch(`/api/scheduled-casts?fid=${user.fid}`);
+          const castsData = await castsResponse.json();
+          setScheduledCasts(castsData.casts);
+          
+          const statusResponse = await fetch(`/api/user-status?fid=${user.fid}`);
+          const statusData = await statusResponse.json();
+          setUserStatus(statusData);
+        }
+      } else {
+        const errorData = await response.json();
+        if (response.status === 403) {
+            alert(errorData.message);
+        } else {
+            throw new Error(errorData.message || 'Failed to schedule cast.');
+        }
+      }
+    } catch (error: any) {
+      console.error(error);
+      alert(`Error: ${error.message}`);
+    }
+  };
+
+  const handleUpgrade = async () => {
+    if (!user) return;
+    setIsUpgrading(true);
+    try {
+      let walletClient = await getWalletClient(config);
+      
+      // If no wallet is connected, try to connect
+      if (!walletClient) {
+        alert("Please connect your wallet in the popup.");
+        try {
+          // Try to connect using the injected connector (MetaMask or similar)
+          const { injected } = await import('@wagmi/connectors');
+          await connectAsync({ connector: injected() });
+          walletClient = await getWalletClient(config);
+        } catch (connectError) {
+          console.error("Wallet connection error:", connectError);
+          throw new Error("Failed to connect wallet. Please make sure you have MetaMask or another Ethereum wallet installed and unlocked in your browser.");
+        }
+      }
+      
+      // Check if we successfully got a wallet client
+      if (!walletClient) {
+        throw new Error("Wallet connection failed. Please try again.");
+      }
+      
+      const initialResponse = await fetch('/api/upgrade', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fid: user.fid })
+      });
+      
+      if (initialResponse.status === 402) {
+        const responseBody = await initialResponse.json();
+        console.log("Payment requirements response:", responseBody);
+        // Fix: Extract payment requirements from the 'accepts' array
+        const paymentRequirements = responseBody.accepts?.[0]; // Get the first payment option
+        if (!paymentRequirements) {
+            throw new Error("Payment requirements not found in the server response.");
+        }
+        
+        console.log("Extracted payment requirements:", paymentRequirements);
+        alert("Please confirm the transaction in your wallet to complete the upgrade.");
+        
+        const paymentToken = await createPaymentToken(paymentRequirements, walletClient);
+        console.log("Created payment token:", paymentToken);
+        
+        const finalResponse = await fetch('/api/upgrade', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json', 
+            'X-PAYMENT': paymentToken 
+          },
+          body: JSON.stringify({ fid: user.fid })
+        });
+        
+        console.log("Final response status:", finalResponse.status);
+        
+        if (finalResponse.ok) {
+            const data = await finalResponse.json();
+            alert(data.message);
+            if (data.txHash) {
+                setLastTxHash(data.txHash); // Set the transaction hash
+            }
+            const statusResponse = await fetch(`/api/user-status?fid=${user.fid}`);
+            if (statusResponse.ok) setUserStatus(await statusResponse.json());
+        } else {
+            const errorData = await finalResponse.json();
+            console.error("Final response error:", errorData);
+            // Show the specific validation errors
+            if (errorData.error && errorData.error.issues) {
+              console.error("Validation issues:", errorData.error.issues);
+              throw new Error(`Validation failed: ${JSON.stringify(errorData.error.issues)}`);
+            }
+            // Handle insufficient funds error specifically
+            if (errorData.error === 'insufficient_funds') {
+              throw new Error("Insufficient funds in your Base Sepolia wallet. To resolve this:\n\n1. Make sure you're connected to the Base Sepolia network in your wallet\n2. Get test ETH from a Base Sepolia faucet (e.g., https://base.org/faucet or https://sepoliafaucet.com)\n3. Try the upgrade again");
+            }
+            throw new Error(errorData.message || "Upgrade failed after payment.");
+        }
+      } else if (!initialResponse.ok) {
+        const errorData = await initialResponse.json();
+        console.error("Initial response error:", errorData);
+        throw new Error(errorData.message || "An unexpected error occurred.");
+      } else {
+        alert("Upgrade not needed. Your account is already Pro.");
+        const statusResponse = await fetch(`/api/user-status?fid=${user.fid}`);
+        if (statusResponse.ok) setUserStatus(await statusResponse.json());
+      }
+    } catch (error: any) {
+      console.error("Upgrade process error:", error);
+      console.error("Error stack:", error.stack);
+      alert(`Upgrade failed: ${error.message}`);
+    } finally {
+      setIsUpgrading(false);
+    }
+  };
   
   const hasReachedLimit = userStatus && !userStatus.is_pro && userStatus.monthly_cast_count >= 15;
 
@@ -96,6 +237,20 @@ export default function Home() {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
+          
+          {lastTxHash && (
+              <div style={{ padding: '15px', backgroundColor: '#1a1a1a', border: '1px solid #333', borderRadius: '8px', textAlign: 'center' }}>
+                  <p>On-chain action successful! ✅</p>
+                  <a 
+                      href={`https://base-sepolia.blockscout.com/tx/${lastTxHash}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      style={{ color: '#8a63d2', textDecoration: 'underline', wordBreak: 'break-all' }}
+                  >
+                      View on Block Explorer
+                  </a>
+              </div>
+          )}
           
           {userStatus && (
             <div style={{ backgroundColor: '#111', border: '1px solid #333', borderRadius: '8px', padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

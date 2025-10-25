@@ -1,285 +1,311 @@
 # FarQueue: Your Smart Farcaster Scheduler
 
-**FarQueue is a powerful, on-chain integrated application that brings the much-needed feature of cast scheduling to the Farcaster ecosystem. Built with a robust backend, a clean user interface, and seamless web3 integration, FarQueue empowers users to plan their content, engage their audience, and manage their presence on Farcaster more effectively.**
+![alt text](https://img.shields.io/badge/Built_with-Neynar-8A63D2?style=for-the-badge)
+
+![alt text](https://img.shields.io/badge/Deployed_with-Vercel-black?style=for-the-badge&logo=vercel)
+
+**FarQueue is a powerful, on-chain integrated application that brings the much-needed feature of cast scheduling to the Farcaster ecosystem. It's not just a scheduler; it's a smart content assistant, using AI to help users write more engaging casts and publishing them at the perfect time.**
 
 **Live Demo:**  TBD
 
----
+----------
 
 ## The Problem
 
-Farcaster is a vibrant, real-time social protocol. However, creators, brands, and busy individuals lack the tools to schedule their content in advance, forcing them to post manually at specific times. This limits content strategy, global audience engagement, and overall efficiency.
+Farcaster is a vibrant, real-time social protocol. However, creators, brands, and busy individuals lack the tools to schedule their content in advance, forcing them to post manually. This limits content strategy, global audience engagement, and overall efficiency. Furthermore, crafting the "perfect" cast that resonates with the audience is more of an art than a science.
 
-## Our Solution
+## Our Solution: FarQueue
 
-FarQueue solves this by providing a simple and intuitive platform to:
-*   **Sign in seamlessly** with your Farcaster account.
-*   **Schedule casts** to be published at any time in the future.
-*   **Manage a content queue** with a clear view of pending and published casts.
-*   **Offer a tiered system** with a generous free tier and an on-chain upgrade path for power users.
+FarQueue solves these problems by providing a seamless, intelligent, and transparent platform to:
+
+-   **Schedule & Automate:** Write casts now and have them published at any time in the future, powered by reliable Vercel Cron Jobs.
+    
+-   **Optimize with AI:** Supercharge your content with our AI-powered "Rewrite" and "Engagement Scoring" features, built on Gaia Nodes.
+    
+-   **Verify On-Chain:** Every key user action, from joining to upgrading, is recorded on the Base Sepolia blockchain for ultimate transparency.
+    
+-   **Upgrade Seamlessly:** A simple, one-click upgrade path for power users, handled by a secure, on-chain payment flow.
+    
 
 ## Key Features
 
-*   **Secure Farcaster Authentication:** Utilizes Sign In with Neynar (SIWN) for secure, wallet-based login.
-*   **Intuitive Cast Scheduling:** A simple UI with a text editor and a datetime picker to schedule casts.
-*   **Automated Publishing:** A reliable backend cron job that uses the Neynar SDK to publish scheduled casts at the exact specified time.
-*   **Tiered Access Model:**
-    *   **Free Tier:** All users can schedule up to 15 casts per month.
-    *   **Pro Tier:** Unlimited casting for a one-time payment of 0.01 ETH on Base Sepolia.
-*   **On-Chain Integration (Base Sepolia):**
-    *   **Pro Pass NFT:** Pro users receive a "FarQueue Pro Pass" NFT (ERC-721) as a verifiable, on-chain proof of their status.
-    *   **On-Chain Activity for All:** Every user's first scheduled cast is recorded on-chain via a `UserRegistered` event, making all user engagement with the platform transparent and verifiable.
-*   **x402 Payment Protocol:** A seamless, one-click upgrade experience using the x402 standard for on-chain payments.
+-   **Smart Scheduling & Automation:** A robust scheduling system built on Vercel Cron Jobs ensures your casts are published reliably and on time.
+    
+-   **AI-Powered Content Studio:**
+    
+    -   **AI Rewrite:** Get three alternative versions of your cast—more engaging, more concise, or a question—to maximize impact.
+        
+    -   **Engagement Scoring:** Receive an instant score (1-100) and justification for your cast's potential performance.
+        
+-   **Verifiable On-Chain Identity:**
+    -   **Pro Pass NFT:** Pro users receive a FarQueue Pro Pass (ERC-721) NFT as a verifiable, on-chain proof of their premium status.
+    -   **User Registration Event:** Every user's first scheduled cast is recorded via a UserRegistered event on our smart contract.
+        
+-   **Personalized User Dashboard:** A dedicated space for users to view their membership status, upgrade transaction, and full history of queued and published casts.
+    
+-   **Seamless Farcaster Integration:** Secure sign-in and cast publishing powered by the Neynar SDK.
+    
+-   **Tiered Access Model:** A generous free tier (15 casts/month) with a simple, on-chain upgrade path to a "Pro" unlimited plan.
+    
 
----
+----------
 
 ## How It Works: Architecture Overview
 
-FarQueue is a full-stack Next.js application that intelligently combines off-chain and on-chain components to deliver a seamless user experience.
+FarQueue is a full-stack Next.js application that intelligently combines a serverless frontend, on-demand API routes, scheduled functions, and on-chain smart contracts.
 
-```mermaid
-sequenceDiagram
+
+
+    `sequenceDiagram
     participant User
     participant Frontend (Next.js/React)
-    participant Backend API (Next.js)
-    participant Cron Job (Node.js)
+    participant Backend API (Next.js on Vercel)
+    participant Vercel Cron Job
     participant MySQL DB
     participant FarQueue Smart Contract (Base Sepolia)
     participant Farcaster (via Neynar)
 
     User->>Frontend: Clicks "Sign In with Farcaster"
-    Frontend->>Farcaster (via Neynar): Initiates SIWN flow
-    Farcaster (via Neynar)->>Frontend: Returns User object (FID, signer_uuid)
+    Frontend->>Farcaster (via Neynar): Initiates SIWN
+    Farcaster (via Neynar)-->>Frontend: Returns User object (FID, signer_uuid)
     Frontend->>Backend API: POST /api/user (Saves user to DB)
 
-    User->>Frontend: Schedules a cast
+    User->>Frontend: Enters cast text, clicks "Optimize with AI"
+    Frontend->>Backend API: POST /api/ai/optimize
+    Backend API->>Gaia Node: Requests rewrites & score
+    Gaia Node-->>Backend API: Returns AI suggestions
+    Backend API-->>Frontend: Displays suggestions to User
+
+    User->>Frontend: Schedules an optimized cast
     Frontend->>Backend API: POST /api/schedule-cast
-    Backend API->>MySQL DB: Checks cast limit and is_pro status
-    alt First time user
+    Backend API->>MySQL DB: Checks cast limit & is_pro status
+    alt First time user & not Pro
         Backend API->>FarQueue Smart Contract: Calls registerUser(fid, address)
-        FarQueue Smart Contract-->>Backend API: Emits UserRegistered event
         Backend API->>MySQL DB: Sets is_registered_onchain = TRUE
     end
     Backend API->>MySQL DB: Saves cast to scheduled_casts
-    MySQL DB-->>Backend API: Success
     Backend API-->>Frontend: "Cast Scheduled!"
 
     loop Every Minute
-        Cron Job->>MySQL DB: Query for due casts
-        MySQL DB-->>Cron Job: Returns due casts + signer_uuid
-        Cron Job->>Farcaster (via Neynar): publishCast(signer_uuid, text)
-        Farcaster (via Neynar)-->>Cron Job: Returns cast hash
-        Cron Job->>MySQL DB: Update cast as published with hash
+        Vercel Cron Job->>Backend API: GET /api/cron
+        Backend API->>MySQL DB: Query for due casts
+        MySQL DB-->>Backend API: Returns due casts + signer_uuid
+        Backend API->>Farcaster (via Neynar): publishCast(...)
+        Farcaster (via Neynar)-->>Backend API: Returns cast hash
+        Backend API->>MySQL DB: Updates cast as published
     end
 
     User->>Frontend: Clicks "Upgrade"
-    Frontend->>Backend API: POST /api/upgrade (triggers 402)
-    Backend API-->>Frontend: 402 Payment Required
-    Frontend->>User: Prompts wallet signature (x402 flow)
-    User->>Frontend: Signs payment
-    Frontend->>Backend API: Retries POST /api/upgrade with X-PAYMENT header
-    Backend API->>FarQueue Smart Contract: Calls safeMint(user_address)
-    FarQueue Smart Contract-->>Backend API: Mints Pro Pass NFT
+    Frontend->>User: Prompts wallet transaction to contract
+    User->>FarQueue Smart Contract: Calls upgradeToPro() with 0.01 ETH
+    FarQueue Smart Contract-->>User: Mints Pro Pass NFT, emits event
+    Frontend->>Backend API: POST /api/upgrade {txHash}
+    Backend API->>Base Sepolia: Verifies transaction receipt
     Backend API->>MySQL DB: Sets is_pro = TRUE
-    MySQL DB-->>Backend API: Success
-    Backend API-->>Frontend: "Upgrade Successful!"
-```
+    Backend API-->>Frontend: "Upgrade Successful!"`
+  
 
----
+----------
 
-## On-Chain Integration: The `FarQueueRegistry` Contract
+## On-Chain Integration: The FarQueueRegistry Contract
 
-To ensure transparency and user ownership, all key user milestones are recorded on the Base Sepolia blockchain via our `FarQueueRegistry` smart contract.
-
-*   **Contract Address (Base Sepolia):** `0x10CCdCB5f2b031d3840425499750Bf6013F26c54`
-*   **Block Explorer URL:** `https://base-sepolia.blockscout.com/tx/0x08fef233c2ae6a705bc4439f897a2612742d6fe8a8a7e408181239057ae719d2`
-
-#### On-Chain Actions:
-
-1.  **Free User Registration:** When a new user schedules their first cast, our backend calls the `registerUser` function. This is a gas-efficient method that emits a `UserRegistered(fid, walletAddress)` event, creating an immutable, public record of their onboarding.
-2.  **Pro Membership NFT:** When a user successfully pays to upgrade, our backend calls the `safeMint` function, minting a non-transferable "FarQueue Pro Pass" (FQP) NFT directly to their wallet. This token acts as a permanent, on-chain proof of their pro status.
+*  **Contract Address (Base Sepolia):**  `0xBe036159a4114A434b2b1F9e6915d310EC471274`
+*  **Block Explorer URL:**  `https://base-sepolia.blockscout.com/address/0xBe036159a4114A434b2b1F9e6915d310EC471274`
 
 #### Smart Contract Code
 
-```solidity
-// contracts/FarQueueRegistry.sol
+```
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/Counters.sol";
+import "@openzeppelin/contracts@4.9.5/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts@4.9.5/access/Ownable.sol";
+import "@openzeppelin/contracts@4.9.5/security/Pausable.sol";
+import "@openzeppelin/contracts@4.9.5/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts@4.9.5/utils/Strings.sol";
 
-contract FarQueueRegistry is ERC721, Ownable {
-    using Counters for Counters.Counter;
-    Counters.Counter private _tokenIdCounter;
-
-    event UserRegistered(uint256 indexed fid, address indexed walletAddress);
-
-    constructor() ERC721("FarQueue Pro Pass", "FQP") Ownable(msg.sender) {}
-
-    /**
-     * @dev Mints a Pro Pass NFT to a user who has paid. Only the contract owner can call this.
-     * @param to The wallet address of the user to receive the NFT.
-     */
-    function safeMint(address to) public onlyOwner {
-        _tokenIdCounter.increment();
-        uint256 tokenId = _tokenIdCounter.current();
-        _safeMint(to, tokenId);
+contract MySecureNFT is ERC721, Ownable, Pausable, ReentrancyGuard {
+    using Strings for uint256;
+    uint256 private _tokenIdCounter;
+    string private _baseTokenURI;
+    bool private _mintingAllowed;
+    event TokenMinted(address indexed minter, uint256 tokenId);
+    
+    constructor(string memory name, string memory symbol, string memory baseTokenURI)
+        ERC721(name, symbol)
+    {
+        _baseTokenURI = baseTokenURI;
+        _mintingAllowed = true;
     }
-
-    /**
-     * @dev Records a free user's first on-chain interaction by emitting an event.
-     * @param fid The Farcaster ID of the user.
-     * @param userAddress The wallet address associated with the user.
-     */
-    function registerUser(uint256 fid, address userAddress) public onlyOwner {
-        emit UserRegistered(fid, userAddress);
+    
+    // Modifiers
+    modifier onlyWhenMintingAllowed() {
+        require(_mintingAllowed, "Minting is disabled");
+        _;
+    }
+    
+    // External Functions
+    function pauseMinting() external onlyOwner {
+        _mintingAllowed = false;
+    }
+    
+    function resumeMinting() external onlyOwner {
+        _mintingAllowed = true;
+    }
+    
+    function setBaseURI(string memory newBaseURI) external onlyOwner {
+        _baseTokenURI = newBaseURI;
+    }
+    
+    function safeMint(address to) external payable onlyWhenMintingAllowed nonReentrant whenNotPaused {
+        _tokenIdCounter++;
+        uint256 tokenId = _tokenIdCounter;
+        _safeMint(to, tokenId);
+        emit TokenMinted(msg.sender, tokenId);
+    }
+    
+    // Overrides
+    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+        require(_exists(tokenId), "Token does not exist");
+        return bytes(_baseTokenURI).length > 0
+            ? string(abi.encodePacked(_baseTokenURI, tokenId.toString()))
+            : "";
+    }
+    
+    function _baseURI() internal view virtual override returns (string memory) {
+        return _baseTokenURI;
+    }
+    
+    // Pausable Overrides
+    function pause() public onlyOwner {
+        _pause();
+    }
+    function unpause() public onlyOwner {
+        _unpause();
     }
 }
 ```
-
----
+----------
 
 ## Tech Stack
 
-*   **Frontend:** Next.js, React, TypeScript, wagmi
-*   **Backend:** Next.js API Routes, Node.js
-*   **Farcaster Integration:** Neynar SDK (`@neynar/react`, `@neynar/nodejs-sdk`)
-*   **Database:** MySQL
-*   **Payments:** x402 Protocol (`x402-next`)
-*   **Blockchain:** Solidity, OpenZeppelin, Base Sepolia
-*   **Scheduling:** `node-cron`
+-   **Frontend:** Next.js, React, TypeScript, wagmi
+    
+-   **Backend:** Next.js API Routes, Vercel Serverless & Cron Jobs
+    
+-   **Farcaster Integration:** Neynar SDK (@neynar/react, @neynar/nodejs-sdk)
+    
+-   **Database:** MySQL
+    
+-   **AI:** Gaia Nodes (via OpenAI SDK)
+    
+-   **Blockchain:** Solidity, OpenZeppelin, Base Sepolia
+    
+-   **Deployment:** Vercel
+    
 
----
+----------
 
 ## Getting Started & Running Locally
-
-Follow these instructions to get a local copy up and running for development and testing.
-
-#### Prerequisites
-
-*   Node.js (v18 or later)
-*   npm or yarn
-*   A running MySQL database instance
 
 #### Installation
 
 1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/harishkotra/FarQueue
-    cd farqueue
-    ```
-
-2.  **Install dependencies:**
-    ```bash
-    npm install
-    ```
-
-3.  **Set up the database:**
-    Connect to your MySQL instance and run the following SQL commands to create the necessary tables:
-    ```sql
-    -- Table to store Farcaster user information
-    CREATE TABLE users (
-        fid BIGINT PRIMARY KEY,
-        signer_uuid VARCHAR(255) NOT NULL UNIQUE,
-        username VARCHAR(255),
-        display_name VARCHAR(255),
-        pfp_url VARCHAR(255),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        is_pro BOOLEAN NOT NULL DEFAULT FALSE,
-        is_registered_onchain BOOLEAN NOT NULL DEFAULT FALSE,
-        verified_address VARCHAR(255) NULL
-    );
-
-    -- Table to store scheduled casts
-    CREATE TABLE scheduled_casts (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        user_fid BIGINT NOT NULL,
-        cast_text TEXT NOT NULL,
-        publish_at TIMESTAMP NOT NULL,
-        is_published BOOLEAN DEFAULT FALSE,
-        published_hash VARCHAR(255) NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_fid) REFERENCES users(fid)
-    );
-
-    -- Add an index for querying due casts efficiently
-    CREATE INDEX idx_publish_at_is_published ON scheduled_casts (publish_at, is_published);
-    ```
-
-4.  **Configure Environment Variables:**
-    Create a `.env.local` file in the project root and fill in your credentials:
-    ```
-    # From dev.neynar.com
-    NEYNAR_API_KEY="YOUR_NEYNAR_API_KEY"
-    NEXT_PUBLIC_NEYNAR_CLIENT_ID="YOUR_NEYNAR_CLIENT_ID"
-
-    # Your MySQL Database Credentials
-    DB_HOST="YOUR_DATABASE_HOST"
-    DB_USER="YOUR_DATABASE_USER"
-    DB_PASSWORD="YOUR_DATABASE_PASSWORD"
-    DB_NAME="YOUR_DATABASE_NAME"
-
-    # Your backend wallet that will pay gas fees on Base Sepolia
-    BACKEND_WALLET_PRIVATE_KEY="0xYourPrivateKey"
-
-    # The address where you deployed the FarQueueRegistry contract
-    NEXT_PUBLIC_CONTRACT_ADDRESS="YourContractAddress"
+	```bash
+	git clone https://github.com/harishkotra/FarQueue
+	cd FarQueue
+	```
+2.  **Install dependencies:** 
+	```bash
+	npm install
+	```
     
-    # Your wallet address to receive x402 payments
-    RECEIVING_WALLET_ADDRESS="YourReceivingWalletAddress"
-    ```
+3.  **Set up the database:** Connect to MySQL and run the SQL schema provided in the previous steps.
+    
+4.  **Configure Environment Variables:** Create a .env.local file and fill in all the required credentials.
+Create a `.env.local` file in the project root and fill in your credentials:
 
-5.  **Run the application:**
-    *   **Start the web server:**
-        ```bash
-        npm run dev
-        ```
-    *   **Start the cron job (in a separate terminal):**
-        ```bash
-        npm run cron:run
-        ```
+```
 
-    Open [http://localhost:3000](http://localhost:3000) to view the application.
+# From dev.neynar.com
+NEYNAR_API_KEY="YOUR_NEYNAR_API_KEY"
+NEXT_PUBLIC_NEYNAR_CLIENT_ID="YOUR_NEYNAR_CLIENT_ID"
+# Your MySQL Database Credentials
+DB_HOST="YOUR_DATABASE_HOST"
+DB_USER="YOUR_DATABASE_USER"
+DB_PASSWORD="YOUR_DATABASE_PASSWORD"
+DB_NAME="YOUR_DATABASE_NAME"
+
+# Your backend wallet that will pay gas fees on Base Sepolia
+BACKEND_WALLET_PRIVATE_KEY="0xYourPrivateKey"
+
+# The address where you deployed the FarQueueRegistry contract
+NEXT_PUBLIC_CONTRACT_ADDRESS="YourContractAddress"
+
+# Your wallet address to receive x402 payments
+RECEIVING_WALLET_ADDRESS="YourReceivingWalletAddress"
+
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
+
+GAIA_NODE_URL="https://qwen72b.gaia.domains/v1"
+GAIA_API_KEY="GAIA_API_KEY"
+GAIA_MODEL_NAME="Qwen3-30B-A3B-Q5_K_M"
+
+CRON_SECRET="your generated secret"
+```
+
+#### **Run the application:**
+
+*  **Start the web server:**
+	```bash
+	npm run dev
+	```
+*  **Start the cron job (in a separate terminal):**
+
+	```bash
+	npm run cron:run
+	```
+
+Open [http://localhost:3000](http://localhost:3000) to view the application.
 
 ---
+    
+
+----------
 
 ## Future Vision & Next Steps
 
-FarQueue aims to become the premier automation and content intelligence layer for the Farcaster protocol. We're moving beyond simple scheduling to provide a comprehensive suite of tools that help creators maximize their impact.
+FarQueue is more than a hackathon project; it's the foundation for a comprehensive content intelligence platform on Farcaster.
 
-#### Immediate Next Steps (Post-Hackathon)
+#### Phase 1: Private Beta & Waitlist (Post-Hackathon)
 
-Our short-term roadmap is focused on enhancing the core user experience and integrating our first set of AI-powered features.
+Our immediate goal is to refine the product based on real-world feedback.
 
-1.  **AI-Powered Cast Optimization:**
-    *   **AI Rewrite:** Before scheduling, users will have an option to "Optimize with AI." Our backend will use a large language model to rewrite their cast for improved clarity, engagement, and impact, offering several alternatives.
-    *   **Engagement Scoring:** The AI will provide an estimated "Engagement Score" for the user's cast, giving them feedback on its potential performance.
+-   **Onboard Waitlist Users:** We will launch a waitlist to begin onboarding an initial cohort of creators and power users in a controlled, rolling basis.
+    
+-   **Core Feature Polish:** Based on feedback, we will implement the most requested quality-of-life features:
+    
+    -   **Edit & Delete:** Allow users to manage their queue before casts are published.
+        
+    -   **Recurring Casts:** Schedule casts to repeat daily, weekly, or monthly.
+        
 
-2.  **Queue Management:**
-    *   **Edit & Delete:** Allow users to modify or remove casts from their queue before they are published.
-    *   **Recurring Casts:** Implement a feature to schedule casts that repeat on a daily, weekly, or monthly basis, perfect for regular announcements or series.
+#### Phase 2: The AI Content Strategist
 
-3.  **User Dashboard & Analytics:**
-    *   A dedicated page for users to view analytics on their published casts (likes, recasts, replies). This data will be crucial for the AI's future learning.
+We will expand our AI capabilities to move from optimization to strategic planning.
 
-#### Long-Term Vision
+-   **AI Scheduling Assistant:** Instead of picking a time, users can use natural language: "Post this when my followers are most active," or "Drop this during peak weekend engagement." Our AI will analyze user and network data to find the optimal time.
+    
+-   **Content Strategy Suggestions:** The AI will analyze a user's most successful casts and suggest new topics, formats, or channels that align with their audience.
+    
 
-Our long-term goal is to build a fully autonomous content strategist for Farcaster users.
+#### Long-Term Vision: The Automation Layer for Farcaster
 
-*   **AI-Powered Scheduling Assistant:**
-    *   Instead of just picking a time, users can give natural language commands like, "Post this when my followers in Asia are most active," or "Publish this during peak weekend engagement."
-    *   The AI will analyze the user's historical engagement data, their followers' activity patterns, and broader network trends to determine the absolute optimal time to publish a cast for maximum reach and interaction.
-
-*   **Advanced Content Tools:**
-    *   **Thread Scheduling:** Allow users to compose and schedule entire multi-cast threads. The AI will help structure the thread for narrative impact.
-    *   **Content Strategy Suggestions:** Based on a user's successful posts, the AI will suggest new topics, formats, or channels they should engage with.
-
-*   **Team & Collaborative Features:**
-    *   Enable shared queues and scheduling permissions for brands, DAOs, and creator teams.
-
+-   **Team Accounts:** Enable shared queues and collaborative scheduling for brands, DAOs, and creator teams.
+    
+-   **Automated Engagement:** Allow users to set up rules for auto-replying to mentions or recasting high-engagement content within their niche.
+    
+-   **Multi-Protocol Support:** Expand FarQueue's capabilities to other decentralized social protocols, becoming the go-to content automation tool for the open social web.
 
 ### Progress Screenshots for Base Batches 002
 

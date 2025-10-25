@@ -11,7 +11,7 @@ export function Footer() {
     <footer style={{
       width: '100%',
       padding: '20px 40px',
-      marginTop: 'auto', // This is key for the sticky footer
+      marginTop: 'auto',
       backgroundColor: '#050505',
       borderTop: '1px solid #333',
       color: '#a0a0a0',

@@ -1,4 +1,3 @@
-// app/api/user/route.ts
 import { NextResponse, NextRequest } from 'next/server';
 import { query } from '@/lib/db';
 import { User } from '@neynar/react/dist/types';

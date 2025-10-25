@@ -1,6 +1,5 @@
 "use client";
 
-
 import { NeynarAuthButton, useNeynarContext } from "@neynar/react";
 import { User } from "@neynar/react/dist/types";
 import { useEffect, useState, useCallback, FormEvent } from "react";

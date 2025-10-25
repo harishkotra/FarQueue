@@ -16,7 +16,6 @@
 <img width="1657" height="1235" alt="screencapture-localhost-3000-2025-10-25-12_17_41" src="https://github.com/user-attachments/assets/5a30321f-9e90-476c-a574-2eb7c66417eb" />
 <img width="1657" height="1478" alt="screencapture-localhost-3000-2025-10-25-12_20_44" src="https://github.com/user-attachments/assets/eca3aec1-8176-4ade-b665-9b60c1d4f3cf" />
 
-
 ----------
 
 ## The Problem
@@ -121,6 +120,10 @@ FarQueue is a full-stack Next.js application that intelligently combines a serve
 *  **Contract Address (Base Sepolia):**  `0xBe036159a4114A434b2b1F9e6915d310EC471274`
 *  **Block Explorer URL:**  `https://base-sepolia.blockscout.com/address/0xBe036159a4114A434b2b1F9e6915d310EC471274`
 
+Smart Contract: [https://base-sepolia.blockscout.com/address/0xBe036159a4114A434b2b1F9e6915d310EC471274?tab=txs](https://base-sepolia.blockscout.com/address/0xBe036159a4114A434b2b1F9e6915d310EC471274?tab=txs)
+NFT Example for Pro Members: [https://base-sepolia.blockscout.com/token/0xBe036159a4114A434b2b1F9e6915d310EC471274/instance/1](https://base-sepolia.blockscout.com/token/0xBe036159a4114A434b2b1F9e6915d310EC471274/instance/1)
+Actual NFT: [https://indigo-electric-swordtail-880.mypinata.cloud/ipfs/bafybeibx7chdpmy6voptx3wycwmmi26a2jygcfdoae57njweskevhjqlxe](https://indigo-electric-swordtail-880.mypinata.cloud/ipfs/bafybeibx7chdpmy6voptx3wycwmmi26a2jygcfdoae57njweskevhjqlxe)
+
 #### Smart Contract Code
 
 ```
@@ -199,17 +202,11 @@ contract MySecureNFT is ERC721, Ownable, Pausable, ReentrancyGuard {
 ## Tech Stack
 
 -   **Frontend:** Next.js, React, TypeScript, wagmi
-    
 -   **Backend:** Next.js API Routes, Vercel Serverless & Cron Jobs
-    
 -   **Farcaster Integration:** Neynar SDK (@neynar/react, @neynar/nodejs-sdk)
-    
 -   **Database:** MySQL
-    
 -   **AI:** Gaia Nodes (via OpenAI SDK)
-    
 -   **Blockchain:** Solidity, OpenZeppelin, Base Sepolia
-    
 -   **Deployment:** Vercel
     
 

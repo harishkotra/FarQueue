@@ -2,15 +2,19 @@ import { NextResponse, NextRequest } from 'next/server';
 import { NeynarAPIClient, Configuration } from '@neynar/nodejs-sdk';
 import * as mysql from 'mysql2/promise';
 
-// This function is the serverless equivalent of your cron job script.
+// Define a type for the data we expect from the database
+interface DueCast {
+  id: number;
+  cast_text: string;
+  signer_uuid: string;
+}
+
 export async function GET(request: NextRequest) {
-  // 1. Secure the endpoint
   const authHeader = request.headers.get('authorization');
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
-  // 2. Initialize clients (same as your script)
   if (!process.env.NEYNAR_API_KEY) {
     return NextResponse.json({ message: 'Neynar API key not set.' }, { status: 500 });
   }
@@ -24,13 +28,12 @@ export async function GET(request: NextRequest) {
     database: process.env.DB_NAME,
   };
 
-  // 3. Perform the job logic (same as your script)
   let connection: mysql.Connection | null = null;
   try {
     connection = await mysql.createConnection(dbConfig);
     const now = new Date();
 
-    const [dueCasts] = await connection.execute<any[]>(
+    const [dueCasts] = await connection.execute<DueCast[]>(
         `SELECT sc.id, sc.cast_text, u.signer_uuid
          FROM scheduled_casts sc
          JOIN users u ON sc.user_fid = u.fid
@@ -51,15 +54,20 @@ export async function GET(request: NextRequest) {
             [result.cast.hash, cast.id]
         );
         publishedCount++;
-      } catch (error: any) {
-        console.error(`Failed to publish cast ${cast.id}:`, error.message);
+      } catch (error: unknown) {
+        if (error instanceof Error) {
+          console.error(`Failed to publish cast ${cast.id}:`, error.message);
+        } else {
+          console.error(`Failed to publish cast ${cast.id}:`, 'An unknown error occurred');
+        }
       }
     }
     return NextResponse.json({ message: `Successfully published ${publishedCount} of ${dueCasts.length} due casts.` }, { status: 200 });
 
-  } catch (error: any) {
-    console.error('Cron job failed:', error);
-    return NextResponse.json({ message: `Cron job failed: ${error.message}` }, { status: 500 });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+    console.error('Cron job failed:', errorMessage);
+    return NextResponse.json({ message: `Cron job failed: ${errorMessage}` }, { status: 500 });
   } finally {
     if (connection) {
       await connection.end();

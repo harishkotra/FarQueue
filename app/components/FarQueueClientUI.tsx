@@ -8,6 +8,7 @@ import { getWalletClient } from '@wagmi/core';
 import { injected } from '@wagmi/connectors';
 import { config } from '@/lib/wagmi';
 import Link from 'next/link';
+import type { WalletClient } from 'viem';
 
 const EIP712Domain = { name: "x402", version: "1" };
 const EIP712Types = {
@@ -17,7 +18,7 @@ const EIP712Types = {
   ],
 };
 
-async function createPaymentToken(paymentRequirements: any, walletClient: any): Promise<string> {
+async function createPaymentToken(paymentRequirements: any, walletClient: WalletClient): Promise<string> {
   try {
     const nonceArray = new Uint8Array(32);
     crypto.getRandomValues(nonceArray);

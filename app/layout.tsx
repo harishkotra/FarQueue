@@ -2,18 +2,12 @@
 import "./globals.css";
 import { NeynarContextProvider, Theme } from "@neynar/react";
 import "@neynar/react/dist/style.css";
-import { WagmiProvider, createConfig, http } from "wagmi";
-import { baseSepolia } from "wagmi/chains";
+import { WagmiProvider } from "wagmi";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { config } from "@/lib/wagmi";
+import { Footer } from "@/app/components/Footer";
 
 const queryClient = new QueryClient();
-
-const config = createConfig({
-  chains: [baseSepolia],
-  transports: {
-    [baseSepolia.id]: http(),
-  },
-});
 
 export default function RootLayout({
   children,
@@ -35,6 +29,7 @@ export default function RootLayout({
             </NeynarContextProvider>
           </QueryClientProvider>
         </WagmiProvider>
+        <Footer />
       </body>
     </html>
   );

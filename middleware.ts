@@ -1,18 +1,16 @@
-// middleware.ts
 import { paymentMiddleware } from 'x402-next';
 
-// Replace with your actual receiving wallet address
-const RECEIVING_WALLET_ADDRESS = "0xYourReceivingWalletAddressHere";
+const RECEIVING_WALLET_ADDRESS = process.env.RECEIVING_WALLET_ADDRESS;
+
+if (!RECEIVING_WALLET_ADDRESS) {
+  throw new Error("RECEIVING_WALLET_ADDRESS is not set in your .env.local file.");
+}
 
 export const middleware = paymentMiddleware(
-  RECEIVING_WALLET_ADDRESS,
+  RECEIVING_WALLET_ADDRESS as `0x${string}`,
   {
-    // Define the route to protect
     '/api/upgrade': {
-      // The price is in USD, x402 handles the conversion to ETH
-      // 0.01 ETH at ~$3500/ETH is $35, so we will use a small dollar amount for testing.
-      // Let's set it to $0.01 for the demo. Adjust as needed.
-      price: '$0.001',
+      price: '$0.01', // Using a small amount for testing
       network: "base-sepolia",
       config: {
         description: 'Upgrade to unlimited casts'
@@ -24,9 +22,10 @@ export const middleware = paymentMiddleware(
   }
 );
 
-// Configure which paths the middleware should run on
 export const config = {
   matcher: [
     '/api/upgrade',
   ]
 };
+
+export const runtime = 'nodejs';

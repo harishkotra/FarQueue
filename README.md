@@ -6,7 +6,16 @@
 
 **FarQueue is a powerful, on-chain integrated application that brings the much-needed feature of cast scheduling to the Farcaster ecosystem. It's not just a scheduler; it's a smart content assistant, using AI to help users write more engaging casts and publishing them at the perfect time.**
 
-**Live Demo:**  TBD
+**Live Demo:** [https://youtu.be/sLNBUD6ffqk](https://youtu.be/sLNBUD6ffqk)
+
+#### Screenshots
+
+<img width="1657" height="1235" alt="screencapture-localhost-3000-2025-10-25-12_17_05" src="https://github.com/user-attachments/assets/6f17b798-4111-4e75-a91e-01573490445e" />
+<img width="1657" height="1235" alt="screencapture-localhost-3000-dashboard-880098-2025-10-25-12_17_14" src="https://github.com/user-attachments/assets/34519ca9-2019-47ed-b732-bc66617bac63" />
+<img width="1657" height="2810" alt="screencapture-localhost-3000-legal-2025-10-25-12_17_26" src="https://github.com/user-attachments/assets/c3e8b995-cb0b-42cd-a7df-f7a49ba14e4b" />
+<img width="1657" height="1235" alt="screencapture-localhost-3000-2025-10-25-12_17_41" src="https://github.com/user-attachments/assets/5a30321f-9e90-476c-a574-2eb7c66417eb" />
+<img width="1657" height="1478" alt="screencapture-localhost-3000-2025-10-25-12_20_44" src="https://github.com/user-attachments/assets/eca3aec1-8176-4ade-b665-9b60c1d4f3cf" />
+
 
 ----------
 
@@ -55,8 +64,8 @@ FarQueue solves these problems by providing a seamless, intelligent, and transpa
 FarQueue is a full-stack Next.js application that intelligently combines a serverless frontend, on-demand API routes, scheduled functions, and on-chain smart contracts.
 
 
-
-    `sequenceDiagram
+```mermaid
+    sequenceDiagram
     participant User
     participant Frontend (Next.js/React)
     participant Backend API (Next.js on Vercel)
@@ -103,7 +112,7 @@ FarQueue is a full-stack Next.js application that intelligently combines a serve
     Backend API->>Base Sepolia: Verifies transaction receipt
     Backend API->>MySQL DB: Sets is_pro = TRUE
     Backend API-->>Frontend: "Upgrade Successful!"`
-  
+```
 
 ----------
 
